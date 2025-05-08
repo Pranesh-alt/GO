@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func main() {
+func structsmain() {
 	var pers1 Person
 	var pers2 Person
 
