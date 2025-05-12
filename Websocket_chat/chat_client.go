@@ -3,53 +3,81 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/gorilla/websocket"
+	"log"
 	"os"
+	"os/signal"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
-var wsURL = "ws://localhost:8080/ws"
+var serverAddr = "ws://localhost:8080/ws"
 
 func main() {
-	// Connect to the WebSocket server
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	fmt.Print("Enter your name: ")
+	reader := bufio.NewReader(os.Stdin)
+	name, _ := reader.ReadString('\n')
+	name = name[:len(name)-1]
+
+	conn, _, err := websocket.DefaultDialer.Dial(serverAddr, nil)
 	if err != nil {
-		fmt.Println("Error connecting to WebSocket server:", err)
-		return
+		log.Fatal("Connection error:", err)
 	}
 	defer conn.Close()
 
-	// Read the user's name
-	var userName string
-	fmt.Print("Enter your name: ")
-	fmt.Scanln(&userName)
+	// Send name as first message
+	conn.WriteMessage(websocket.TextMessage, []byte(name))
 
-	// Send username to server
-	conn.WriteMessage(websocket.TextMessage, []byte(userName+" has joined the chat"))
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
 
-	// Goroutine to receive messages from the server
+	// Start a goroutine to receive messages
 	go func() {
 		for {
-			_, message, err := conn.ReadMessage()
+			_, msg, err := conn.ReadMessage()
 			if err != nil {
-				fmt.Println("Error reading message:", err)
-				return
+				fmt.Println("Disconnected from server.")
+				os.Exit(0)
 			}
-			// Print received message to console
-			fmt.Println(string(message))
+			fmt.Println(string(msg))
 		}
 	}()
 
-	// Main loop for sending messages
-	scanner := bufio.NewScanner(os.Stdin)
 	for {
-		fmt.Print("Enter your message: ")
-		if !scanner.Scan() {
-			fmt.Println("Input error.")
-			break
-		}
-		message := scanner.Text()
+		fmt.Println("\n--- Menu ---")
+		fmt.Println("1. Exit")
+		fmt.Println("2. show-messages (press 'q' + Enter to return)")
+		fmt.Println("3. send-message")
+		fmt.Print("Choose option: ")
 
-		// Send message to WebSocket server
-		conn.WriteMessage(websocket.TextMessage, []byte(userName+": "+message))
+		option, _ := reader.ReadString('\n')
+
+		switch option {
+		case "1\n":
+			fmt.Println("Goodbye!")
+			return
+
+		case "2\n":
+			fmt.Println("Listening to messages (press 'q' then Enter to quit)...")
+			for {
+				text, _ := reader.ReadString('\n')
+				if text == "q\n" {
+					break
+				}
+			}
+
+		case "3\n":
+			fmt.Print("Enter message: ")
+			message, _ := reader.ReadString('\n')
+			err := conn.WriteMessage(websocket.TextMessage, []byte(message))
+			if err != nil {
+				log.Println("Write error:", err)
+			}
+
+		default:
+			fmt.Println("Invalid option.")
+		}
+
+		time.Sleep(200 * time.Millisecond)
 	}
 }
