@@ -3,116 +3,61 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
-	"log"
 	"net/http"
 	"sync"
-	"time"
 )
 
-type Client struct {
-	conn *websocket.Conn
-	name string
-}
+var (
+	clients     = make(map[*websocket.Conn]bool) // Connected clients
+	clientsLock sync.Mutex                       // Mutex to handle concurrent access to the clients map
+)
 
-type Server struct {
-	clients    map[*Client]bool
-	register   chan *Client
-	unregister chan *Client
-	broadcast  chan string
-	mu         sync.Mutex
-}
-
-func NewServer() *Server {
-	return &Server{
-		clients:    make(map[*Client]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		broadcast:  make(chan string),
+// WebSocket handler function
+func handleConnections(w http.ResponseWriter, r *http.Request) {
+	// Upgrade HTTP connection to WebSocket
+	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+	if err != nil {
+		fmt.Println("Error upgrading connection:", err)
+		return
 	}
-}
-
-func (s *Server) Start() {
-	for {
-		select {
-		case client := <-s.register:
-			s.mu.Lock()
-			s.clients[client] = true
-			s.mu.Unlock()
-			log.Printf("Client %s joined the chat", client.name)
-
-		case client := <-s.unregister:
-			s.mu.Lock()
-			delete(s.clients, client)
-			s.mu.Unlock()
-			log.Printf("Client %s left the chat", client.name)
-
-		case message := <-s.broadcast:
-			// Print the message to the server's console to see the chats
-			fmt.Println("Server Chat Message: ", message)
-
-			// Broadcast the message to all connected clients
-			s.mu.Lock()
-			for client := range s.clients {
-				err := client.conn.WriteMessage(websocket.TextMessage, []byte(message))
-				if err != nil {
-					log.Println("Error sending message:", err)
-					client.conn.Close()
-					delete(s.clients, client)
-				}
-			}
-			s.mu.Unlock()
-		}
-	}
-}
-
-func (s *Server) handleConnection(conn *websocket.Conn) {
 	defer conn.Close()
 
-	// Get the client's name
-	conn.WriteMessage(websocket.TextMessage, []byte("Enter your name: "))
-	_, nameMsg, _ := conn.ReadMessage()
-	clientName := string(nameMsg)
+	// Add the new client to the map (with mutex to ensure thread safety)
+	clientsLock.Lock()
+	clients[conn] = true
+	clientsLock.Unlock()
 
-	client := &Client{conn: conn, name: clientName}
-	s.register <- client
-
-	// Listen for messages from this client
-	go func() {
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				s.unregister <- client
-				log.Printf("Client %s disconnected", clientName)
-				break
-			}
-			// Broadcast the message to all clients
-			message := fmt.Sprintf("%s: %s", clientName, msg)
-			s.broadcast <- message
-		}
-	}()
-
-	// Keep the client connected
+	// Listen for incoming messages from this client
 	for {
-		time.Sleep(time.Second)
+		messageType, message, err := conn.ReadMessage()
+		if err != nil {
+			fmt.Println("Error reading message:", err)
+			break
+		}
+
+		// Broadcast the message to all connected clients (with mutex to ensure thread safety)
+		clientsLock.Lock()
+		for client := range clients {
+			if err := client.WriteMessage(messageType, message); err != nil {
+				fmt.Println("Error sending message:", err)
+			}
+		}
+		clientsLock.Unlock()
 	}
+
+	// Remove the client from the map once disconnected (with mutex to ensure thread safety)
+	clientsLock.Lock()
+	delete(clients, conn)
+	clientsLock.Unlock()
 }
 
 func main() {
-	server := NewServer()
-	go server.Start()
+	// Serve WebSocket connections on "/ws"
+	http.HandleFunc("/ws", handleConnections)
 
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		upgrader := websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool { return true },
-		}
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Println("Failed to upgrade WebSocket:", err)
-			return
-		}
-		server.handleConnection(conn)
-	})
-
-	log.Println("Server started on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// Start the server
+	fmt.Println("Server started on ws://localhost:8080")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		fmt.Println("Error starting server:", err)
+	}
 }
