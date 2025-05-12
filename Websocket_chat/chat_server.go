@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"sync"
-
-	"github.com/gorilla/websocket"
 )
 
 type Client struct {

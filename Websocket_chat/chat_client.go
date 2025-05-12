@@ -31,7 +31,9 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	// Start a goroutine to receive messages
+	showMessages := false
+
+	// Start message receiver
 	go func() {
 		for {
 			_, msg, err := conn.ReadMessage()
@@ -39,7 +41,9 @@ func main() {
 				fmt.Println("Disconnected from server.")
 				os.Exit(0)
 			}
-			fmt.Println(string(msg))
+			if showMessages {
+				fmt.Println(string(msg))
+			}
 		}
 	}()
 
@@ -58,10 +62,12 @@ func main() {
 			return
 
 		case "2\n":
+			showMessages = true
 			fmt.Println("Listening to messages (press 'q' then Enter to quit)...")
 			for {
 				text, _ := reader.ReadString('\n')
 				if text == "q\n" {
+					showMessages = false
 					break
 				}
 			}
