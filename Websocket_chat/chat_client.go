@@ -3,12 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"log"
 	"os"
 	"os/signal"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 var serverAddr = "ws://localhost:8080/ws"
