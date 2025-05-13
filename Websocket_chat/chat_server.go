@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"sync"
@@ -19,14 +21,16 @@ type Server struct {
 	unregister chan *Client
 	broadcast  chan []byte
 	mu         sync.Mutex
+	db         *sql.DB
 }
 
-func NewServer() *Server {
+func NewServer(db *sql.DB) *Server {
 	return &Server{
 		clients:    make(map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte),
+		db:         db,
 	}
 }
 
@@ -74,8 +78,14 @@ func (c *Client) readPump(s *Server) {
 		if err != nil {
 			break
 		}
-		broadcastMsg := []byte(fmt.Sprintf("%s: %s", c.name, msg))
-		s.broadcast <- broadcastMsg
+		text := fmt.Sprintf("%s: %s", c.name, msg)
+		s.broadcast <- []byte(text)
+
+		// Save message to DB
+		_, err = s.db.Exec("INSERT INTO messages (username, content) VALUES (?, ?)", c.name, string(msg))
+		if err != nil {
+			fmt.Println("DB insert error:", err)
+		}
 	}
 }
 
@@ -99,7 +109,7 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read name as the first message
+	// Get name as the first message
 	_, nameMsg, err := conn.ReadMessage()
 	if err != nil {
 		conn.Close()
@@ -109,8 +119,23 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	client := &Client{
 		conn: conn,
-		send: make(chan []byte, 256), // buffered
+		send: make(chan []byte, 256),
 		name: name,
+	}
+
+	// Send last 10 messages from DB
+	rows, err := s.db.Query("SELECT username, content FROM messages ORDER BY timestamp DESC LIMIT 10")
+	if err == nil {
+		defer rows.Close()
+		var username, content string
+		var history []string
+		for rows.Next() {
+			rows.Scan(&username, &content)
+			history = append([]string{fmt.Sprintf("%s: %s", username, content)}, history...)
+		}
+		for _, msg := range history {
+			client.send <- []byte(msg)
+		}
 	}
 
 	s.register <- client
@@ -119,8 +144,28 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 	go client.readPump(s)
 }
 
+func initDB() (*sql.DB, error) {
+	// Update with your own credentials
+	dsn := "root:62145090@tcp(127.0.0.1:3306)/chatapp"
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
 func main() {
-	server := NewServer()
+	db, err := initDB()
+	if err != nil {
+		fmt.Println("Database connection error:", err)
+		return
+	}
+	defer db.Close()
+
+	server := NewServer(db)
 	go server.Run()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +173,7 @@ func main() {
 	})
 
 	fmt.Println("Server started on ws://localhost:8080/ws")
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
 		fmt.Println("Server error:", err)
 	}
