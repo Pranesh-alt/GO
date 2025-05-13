@@ -10,9 +10,10 @@ import (
 )
 
 type Client struct {
-	conn *websocket.Conn
-	send chan []byte
-	name string
+	conn   *websocket.Conn
+	send   chan []byte
+	name   string
+	userID int
 }
 
 type Server struct {
@@ -41,7 +42,7 @@ func (s *Server) Run() {
 			s.mu.Lock()
 			s.clients[client] = true
 			s.mu.Unlock()
-			fmt.Printf("[JOIN] %s joined\n", client.name)
+			fmt.Printf("[JOIN] %s joined (user_id: %d)\n", client.name, client.userID)
 
 		case client := <-s.unregister:
 			s.mu.Lock()
@@ -81,8 +82,7 @@ func (c *Client) readPump(s *Server) {
 		text := fmt.Sprintf("%s: %s", c.name, msg)
 		s.broadcast <- []byte(text)
 
-		// Save to DB
-		_, err = s.db.Exec("INSERT INTO messages (username, content) VALUES (?, ?)", c.name, string(msg))
+		_, err = s.db.Exec("INSERT INTO messages (user_id, content) VALUES (?, ?)", c.userID, string(msg))
 		if err != nil {
 			fmt.Println("DB insert error:", err)
 		}
@@ -109,7 +109,6 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read client's name
 	_, nameMsg, err := conn.ReadMessage()
 	if err != nil {
 		conn.Close()
@@ -117,14 +116,40 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 	name := string(nameMsg)
 
-	client := &Client{
-		conn: conn,
-		send: make(chan []byte, 256),
-		name: name,
+	// Ensure user exists and get user_id
+	var userID int
+	err = s.db.QueryRow("SELECT id FROM users WHERE username = ?", name).Scan(&userID)
+	if err == sql.ErrNoRows {
+		// Insert new user
+		res, err := s.db.Exec("INSERT INTO users (username) VALUES (?)", name)
+		if err != nil {
+			fmt.Println("User insert error:", err)
+			conn.Close()
+			return
+		}
+		lastID, _ := res.LastInsertId()
+		userID = int(lastID)
+	} else if err != nil {
+		fmt.Println("User lookup error:", err)
+		conn.Close()
+		return
 	}
 
-	// Load last 10 messages from DB and send to this client
-	rows, err := s.db.Query("SELECT username, content FROM messages ORDER BY timestamp DESC LIMIT 10")
+	client := &Client{
+		conn:   conn,
+		send:   make(chan []byte, 256),
+		name:   name,
+		userID: userID,
+	}
+
+	// Send last 10 messages
+	rows, err := s.db.Query(`
+		SELECT u.username, m.content
+		FROM messages m
+		JOIN users u ON u.id = m.user_id
+		ORDER BY m.timestamp DESC
+		LIMIT 10
+	`)
 	if err == nil {
 		defer rows.Close()
 		var username, content string
@@ -135,7 +160,6 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				continue
 			}
-			// Prepend so we can reverse order later
 			history = append([]string{fmt.Sprintf("%s: %s", username, content)}, history...)
 		}
 
@@ -143,7 +167,7 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 			client.send <- []byte(msg)
 		}
 	} else {
-		fmt.Println("Failed to load message history:", err)
+		fmt.Println("Failed to load history:", err)
 	}
 
 	s.register <- client
@@ -153,8 +177,7 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 }
 
 func initDB() (*sql.DB, error) {
-	// Replace with your MySQL credentials
-	dsn := "username:password@tcp(127.0.0.1:3306)/chatdb"
+	dsn := "root:62145090@tcp(127.0.0.1:3306)/chatapp"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
