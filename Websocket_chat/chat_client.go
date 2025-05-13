@@ -40,7 +40,10 @@ func main() {
 
 	showMessages := false
 
-	// Start goroutine to receive messages
+	// Channel to receive and print messages
+	messageChan := make(chan string)
+
+	// Goroutine to receive messages
 	go func() {
 		for {
 			_, msg, err := conn.ReadMessage()
@@ -48,9 +51,15 @@ func main() {
 				fmt.Println("\n[Disconnected from server]")
 				os.Exit(0)
 			}
-			if showMessages {
-				// Display received messages
-				fmt.Println(string(msg))
+			messageChan <- string(msg)
+		}
+	}()
+
+	// Goroutine to print messages if showMessages is on
+	go func() {
+		for msg := range messageChan {
+			if showMessages || strings.HasPrefix(msg, name+":") == false {
+				fmt.Println(msg)
 			}
 		}
 	}()
@@ -59,7 +68,7 @@ func main() {
 	for {
 		fmt.Println("\n--- Menu ---")
 		fmt.Println("1. Exit")
-		fmt.Println("2. Show Messages (press 'q' + Enter to quit viewing)")
+		fmt.Println("2. Show Messages (press 'q' + Enter to stop)")
 		fmt.Println("3. Send Message")
 		fmt.Print("Choose option: ")
 

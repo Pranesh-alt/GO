@@ -81,7 +81,7 @@ func (c *Client) readPump(s *Server) {
 		text := fmt.Sprintf("%s: %s", c.name, msg)
 		s.broadcast <- []byte(text)
 
-		// Save message to DB
+		// Save to DB
 		_, err = s.db.Exec("INSERT INTO messages (username, content) VALUES (?, ?)", c.name, string(msg))
 		if err != nil {
 			fmt.Println("DB insert error:", err)
@@ -109,7 +109,7 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get name as the first message
+	// Read client's name
 	_, nameMsg, err := conn.ReadMessage()
 	if err != nil {
 		conn.Close()
@@ -123,19 +123,27 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 		name: name,
 	}
 
-	// Send last 10 messages from DB
+	// Load last 10 messages from DB and send to this client
 	rows, err := s.db.Query("SELECT username, content FROM messages ORDER BY timestamp DESC LIMIT 10")
 	if err == nil {
 		defer rows.Close()
 		var username, content string
 		var history []string
+
 		for rows.Next() {
-			rows.Scan(&username, &content)
+			err := rows.Scan(&username, &content)
+			if err != nil {
+				continue
+			}
+			// Prepend so we can reverse order later
 			history = append([]string{fmt.Sprintf("%s: %s", username, content)}, history...)
 		}
+
 		for _, msg := range history {
 			client.send <- []byte(msg)
 		}
+	} else {
+		fmt.Println("Failed to load message history:", err)
 	}
 
 	s.register <- client
@@ -145,8 +153,8 @@ func serveWs(s *Server, w http.ResponseWriter, r *http.Request) {
 }
 
 func initDB() (*sql.DB, error) {
-	// Update with your own credentials
-	dsn := "root:62145090@tcp(127.0.0.1:3306)/chatapp"
+	// Replace with your MySQL credentials
+	dsn := "username:password@tcp(127.0.0.1:3306)/chatdb"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
