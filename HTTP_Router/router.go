@@ -3,23 +3,24 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 )
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Home Page")
-}
-
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "About Page")
+// Handler to extract "category" from the route
+func ArticlesCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)          // Extracts path variables into a map
+	category := vars["category"] // Gets the value of the "category" variable
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Category: %v\n", category)
 }
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/", homeHandler).Methods("GET")
-	r.HandleFunc("/about", aboutHandler).Methods("GET")
 
-	fmt.Println("Server listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	// Define a route with a named variable
+	r.HandleFunc("/articles/{category}", ArticlesCategoryHandler)
+	fmt.Println("Server started on http//localhost:8080")
+
+	http.ListenAndServe(":8080", r)
+
 }
