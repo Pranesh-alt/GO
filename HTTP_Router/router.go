@@ -19,8 +19,8 @@ func main() {
 
 	// Define a route with a named variable
 	r.HandleFunc("/articles/{category}", ArticlesCategoryHandler)
-	fmt.Println("Server started on http//localhost:8080")
+	fmt.Println("Server started on http//localhost:8081")
 
-	http.ListenAndServe(":8080", r)
+	http.ListenAndServe(":8081", r)
 
 }
