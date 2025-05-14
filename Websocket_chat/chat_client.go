@@ -38,10 +38,8 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	showMessages := false
-
-	// Channel to receive and print messages
-	messageChan := make(chan string)
+	// Channel to receive all messages
+	messageChan := make(chan string, 100)
 
 	// Goroutine to receive messages
 	go func() {
@@ -52,15 +50,6 @@ func main() {
 				os.Exit(0)
 			}
 			messageChan <- string(msg)
-		}
-	}()
-
-	// Goroutine to print messages if showMessages is on
-	go func() {
-		for msg := range messageChan {
-			if showMessages || strings.HasPrefix(msg, name+":") == false {
-				fmt.Println(msg)
-			}
 		}
 	}()
 
@@ -81,12 +70,29 @@ func main() {
 			return
 
 		case "2":
-			showMessages = true
 			fmt.Println("Listening to messages (press 'q' + Enter to stop)...")
+			done := make(chan bool)
+
+			// Goroutine to print messages while in this mode
+			go func() {
+				for {
+					select {
+					case msg := <-messageChan:
+						// Show all messages except user's own
+						if !strings.HasPrefix(msg, name+":") {
+							fmt.Println(msg)
+						}
+					case <-done:
+						return
+					}
+				}
+			}()
+
+			// Wait for 'q' to quit showing messages
 			for {
 				text, _ := reader.ReadString('\n')
 				if strings.TrimSpace(text) == "q" {
-					showMessages = false
+					done <- true
 					break
 				}
 			}
