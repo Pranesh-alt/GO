@@ -24,10 +24,16 @@ func ProductDetailHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 
-	// Subrouter for product-related routes
+	// Subroute for product-related routes
 	productRouter := r.PathPrefix("/products/").Subrouter()
 
 	productRouter.HandleFunc("/{id}", ProductDetailHandler)
+
+	// Define the directory path for static files
+	dir := "./static"
+	r.PathPrefix("/static/").Handler(
+		http.StripPrefix("/static/", http.FileServer(http.Dir(dir))),
+	)
 
 	// Define a route with a named variable
 	r.HandleFunc("/articles/{category}", ArticlesCategoryHandler).
