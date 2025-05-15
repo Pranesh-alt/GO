@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 )
 
@@ -40,7 +41,15 @@ func main() {
 		Schemes("https").
 		Headers("X-Requested-With", "XMLHttpRequest").
 		Methods("GET", "POST").
-		Queries("type", "premium", "sort", "asc") //filter?type=premium&sort=asc
+		Queries("type", "premium", "sort", "asc"). //filter?type=premium&sort=asc
+		Name("article")
+
+	url, err := r.Get("article").URL("category", "technology", "id", "42") // Build a URL Dynamically
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(url.String())
 
 	fmt.Println("Server started on http//localhost:8081")
 
