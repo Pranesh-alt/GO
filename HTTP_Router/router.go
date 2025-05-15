@@ -44,12 +44,21 @@ func main() {
 		Queries("type", "premium", "sort", "asc"). //filter?type=premium&sort=asc
 		Name("article")
 
-	url, err := r.Get("article").URL("category", "technology", "id", "42") // Build a URL Dynamically
+	// Build a URL Dynamically
+	url, err := r.Get("article").URL("category", "technology", "id", "42")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println(url.String())
+
+	// Query Parameters
+
+	q := url.Query()
+	q.Add("sort", "desc")
+	url.RawQuery = q.Encode()
+
+	fmt.Println(url.String()) // /articles/technology/42?sort=desc
 
 	fmt.Println("Server started on http//localhost:8081")
 
