@@ -12,27 +12,20 @@ import (
 func main() {
 	userService := service.NewUserService()
 	userHandler := handler.NewUserHandler(userService)
-	// Initialize router
+
+	// Use gorilla/mux router
 	r := mux.NewRouter()
 
-	// Existing routes...
+	// User routes
+	r.HandleFunc("/users", userHandler.GetUsers).Methods("GET")
+	r.HandleFunc("/users", userHandler.CreateUser).Methods("POST")
 	r.HandleFunc("/users/{id}", userHandler.UpdateUser).Methods("PUT")
 	r.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
-	r.HandleFunc("/users/{id}", userHandler.DeleteUser).Methods("DELETE")
+	r.HandleFunc("/users/{id}", userHandler.GetUserByID).Methods("GET")
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			userHandler.GetUsers(w, r)
-		} else if r.Method == http.MethodPost {
-			userHandler.CreateUser(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
+	// Enable CORS
+	corsHandler := cors.Default().Handler(r)
 
-	handler := cors.Default().Handler(mux)
-
-	fmt.Println("Server started on http//localhost:8081")
-	http.ListenAndServe(":8080", handler)
+	fmt.Println("Server started on http://localhost:8080")
+	http.ListenAndServe(":8080", corsHandler)
 }

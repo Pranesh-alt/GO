@@ -24,6 +24,17 @@ func (s *UserService) GetAllUsers() []model.User {
 	return s.users
 }
 
+func (s *UserService) GetUserByID(id int) (model.User, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, user := range s.users {
+		if user.ID == id {
+			return user, true
+		}
+	}
+	return model.User{}, false
+}
 func (s *UserService) AddUser(user model.User) model.User {
 	s.mu.Lock()
 	defer s.mu.Unlock()

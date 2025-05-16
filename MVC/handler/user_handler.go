@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/yourusername/simple-api/model"
 	"github.com/yourusername/simple-api/service"
@@ -18,6 +19,7 @@ func writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(data)
+	fmt.Println(("Response "))
 }
 
 func NewUserHandler(service *service.UserService) *UserHandler {
@@ -32,6 +34,24 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
+func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars((r))
+
+	id, err := strconv.Atoi((vars["id"]))
+	if err != nil {
+		http.Error((w), "Invalid user ID", http.StatusBadRequest)
+	}
+	user, ok := h.UserService.GetUserByID((id))
+	if !ok {
+		http.Error((w), "User not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set(("Content-Type"), "application/json")
+	json.NewEncoder((w)).Encode(user)
+	fmt.Println("User ID:", id)
+	fmt.Println("User found", user)
+
+}
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var user model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
