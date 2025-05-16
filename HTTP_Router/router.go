@@ -65,12 +65,12 @@ func main() {
 
 	fmt.Println(url.String()) // /articles/technology/42?sort=desc
 
-	// ustom Usage Idea: List Routes on /debug/routes
+	// custom Usage Idea: List Routes on /debug/routes
 	r.HandleFunc("/debug/routes", func(w http.ResponseWriter, req *http.Request) {
 		r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 			pathTemplate, _ := route.GetPathTemplate()
 			methods, _ := route.GetMethods()
-			fmt.Fprintf(w, "%s %v\n", strings.Join(methods, ","), pathTemplate)
+			fmt.Fprintf(w, "%s %v\n", strings.Join(methods, ","), pathTemplate) //output : GET,POST /articles/{category}
 			return nil
 		})
 	})
