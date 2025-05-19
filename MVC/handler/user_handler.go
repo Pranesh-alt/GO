@@ -109,3 +109,47 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *UserHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+}
+
+func (h *UserHandler) SearchUsers(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("name")
+	var matched []model.User
+	for _, user := range h.UserService.GetAllUsers() {
+		if query != "" && user.Name == query {
+			matched = append(matched, user)
+		}
+	}
+	json.NewEncoder(w).Encode(matched)
+}
+
+func (h *UserHandler) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
+	email := mux.Vars(r)["email"]
+	user, found := h.UserService.GetUserByEmail(email)
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *UserHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
+	stats := h.UserService.GetStats()
+	json.NewEncoder(w).Encode(stats)
+}
+
+func (h *UserHandler) DeleteUserByEmail(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		http.Error(w, "Missing email query", http.StatusBadRequest)
+		return
+	}
+	if ok := h.UserService.DeleteUserByEmail(email); !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

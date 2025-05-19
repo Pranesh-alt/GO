@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/yourusername/simple-api/model"
+	"strings"
 	"sync"
 )
 
@@ -64,6 +65,53 @@ func (s *UserService) DeleteUser(id int) bool {
 
 	for i, user := range s.users {
 		if user.ID == id {
+			s.users = append(s.users[:i], s.users[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func (s *UserService) SearchUsersByName(name string) []model.User {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var result []model.User
+	for _, user := range s.users {
+		if strings.Contains(strings.ToLower(user.Name), strings.ToLower(name)) {
+			result = append(result, user)
+		}
+	}
+	return result
+}
+
+func (s *UserService) GetUserByEmail(email string) (model.User, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, user := range s.users {
+		if strings.EqualFold(user.Email, email) {
+			return user, true
+		}
+	}
+	return model.User{}, false
+}
+
+func (s *UserService) GetStats() map[string]int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return map[string]int{
+		"total_users": len(s.users),
+	}
+}
+
+func (s *UserService) DeleteUserByEmail(email string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, user := range s.users {
+		if strings.EqualFold(user.Email, email) {
 			s.users = append(s.users[:i], s.users[i+1:]...)
 			return true
 		}
