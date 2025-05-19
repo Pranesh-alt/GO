@@ -1,57 +1,112 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"net"
-
-	"user-service/models"
-	"user-service/proto"
-
-	"google.golang.org/grpc"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"log"
+	"time"
 )
 
-type userServer struct {
-	proto.UnimplementedUserServiceServer
-	DB *gorm.DB
+// User with many Roles (many-to-many)
+type User struct {
+	gorm.Model
+	Name  string
+	Email string `gorm:"unique"`
+	Roles []Role `gorm:"many2many:user_roles;"`
 }
 
-func (s *userServer) CreateUser(ctx context.Context, req *proto.CreateUserRequest) (*proto.UserResponse, error) {
-	user := models.User{Name: req.Name, Email: req.Email}
-	if err := s.DB.Create(&user).Error; err != nil {
-		return nil, err
-	}
-	return &proto.UserResponse{Id: user.ID, Name: user.Name, Email: user.Email}, nil
+// Role can belong to many Users
+type Role struct {
+	gorm.Model
+	Name  string
+	Users []User `gorm:"many2many:user_roles;"`
 }
 
-func (s *userServer) GetUser(ctx context.Context, req *proto.GetUserRequest) (*proto.UserResponse, error) {
-	var user models.User
-	if err := s.DB.First(&user, req.Id).Error; err != nil {
-		return nil, err
-	}
-	return &proto.UserResponse{Id: user.ID, Name: user.Name, Email: user.Email}, nil
+// Product with soft delete example
+type Product struct {
+	gorm.Model
+	Name  string
+	Price float64
 }
 
 func main() {
-	db, err := gorm.Open(sqlite.Open("users.db"), &gorm.Config{})
+	dsn := "root:62145090@tcp(127.0.0.1:3306)/gorm_example?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("failed to connect DB: ", err)
-	}
-	db.AutoMigrate(&models.User{})
-
-	lis, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Fatal("failed to listen: ", err)
+		log.Fatal("failed to connect to database:", err)
 	}
 
-	grpcServer := grpc.NewServer()
-	proto.RegisterUserServiceServer(grpcServer, &userServer{DB: db})
-
-	fmt.Println("gRPC server running on port 50051")
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatal("failed to serve: ", err)
+	// Auto migrate
+	if err := db.AutoMigrate(&User{}, &Role{}, &Product{}); err != nil {
+		log.Fatal("auto migrate failed:", err)
 	}
+
+	// Create roles
+	adminRole := Role{Name: "Admin"}
+	userRole := Role{Name: "User"}
+	db.Clauses(clause.OnConflict{DoNothing: true}).Create(&adminRole)
+	db.Clauses(clause.OnConflict{DoNothing: true}).Create(&userRole)
+
+	// Create a user with roles (many-to-many)
+	user := User{
+		Name:  "Dana",
+		Email: "dana@example.com",
+		Roles: []Role{adminRole, userRole},
+	}
+	db.Create(&user)
+
+	// Query user with roles (preload many-to-many)
+	var fetchedUser User
+	db.Preload("Roles").First(&fetchedUser, "email = ?", "dana@example.com")
+	fmt.Println("User:", fetchedUser.Name)
+	for _, r := range fetchedUser.Roles {
+		fmt.Println("Role:", r.Name)
+	}
+
+	// Soft delete example with product
+	product := Product{Name: "Tablet", Price: 299.99}
+	db.Create(&product)
+
+	// Soft delete product
+	db.Delete(&product)
+	fmt.Printf("Product %s soft deleted at %v\n", product.Name, time.Now())
+
+	// Query only non-deleted products
+	var products []Product
+	db.Find(&products)
+	fmt.Printf("Products (excluding soft deleted): %d\n", len(products))
+
+	// Query including soft deleted
+	var allProducts []Product
+	db.Unscoped().Find(&allProducts)
+	fmt.Printf("Products (including soft deleted): %d\n", len(allProducts))
+
+	// Filtering, sorting, pagination example:
+	var users []User
+	pageSize := 2
+	page := 1
+	db.Preload("Roles").
+		Where("name LIKE ?", "%a%").
+		Order("created_at desc").
+		Limit(pageSize).
+		Offset((page - 1) * pageSize).
+		Find(&users)
+
+	fmt.Println("Filtered users:")
+	for _, u := range users {
+		fmt.Println("User:", u.Name)
+	}
+
+	// Hook example: before create callback (defined below)
+	newUser := User{Name: "Eve", Email: "eve@example.com"}
+	db.Create(&newUser)
+}
+
+// Example of GORM hook (callback) on User model
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	fmt.Println("BeforeCreate hook triggered for user:", u.Name)
+	// You can add validations or modify fields here
+	return nil
 }
