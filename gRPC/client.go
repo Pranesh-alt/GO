@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial("localhost:50050", grpc.WithInsecure())
+	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Did not connect: %v", err)
 	}
@@ -19,9 +19,9 @@ func main() {
 
 	client := pb.NewGreeterClient(conn)
 
-	callSayHello(client)
+	// callSayHello(client)
 	// callSayHelloManyTimes(client)
-	// callLongGreet(client)
+	callLongGreet(client)
 	// callGreetEveryone(client)
 }
 
@@ -61,7 +61,7 @@ func callLongGreet(client pb.GreeterClient) {
 		log.Fatalf("Error calling LongGreet: %v", err)
 	}
 
-	names := []string{"Tom", "Jerry", "Spike"}
+	names := []string{"Iron Man", "Friday", "Jarvis"}
 	for _, name := range names {
 		log.Printf("Sending: %s", name)
 		stream.Send(&pb.HelloRequest{Name: name})
