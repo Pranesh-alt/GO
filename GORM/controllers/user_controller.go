@@ -24,3 +24,15 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 	db.Create(&input)
 	c.JSON(http.StatusCreated, input)
 }
+
+// Get a user by ID
+func GetUserByID(c *gin.Context, db *gorm.DB) {
+	id := c.Params.ByName(("id"))
+	var user models.User
+	if err := db.Where(("id = ?"), id).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	c.JSON(http.StatusOK, user)
+
+}
