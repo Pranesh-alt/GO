@@ -27,8 +27,9 @@ type Role struct {
 // Product with soft delete example
 type Product struct {
 	gorm.Model
-	Name  string
-	Price float64
+	Name      string
+	Price     float64
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 func main() {
@@ -51,15 +52,15 @@ func main() {
 
 	// Create a user with roles (many-to-many)
 	user := User{
-		Name:  "Dana",
-		Email: "dana@example.com",
+		Name:  "Pranesh",
+		Email: "pranesh@example.com",
 		Roles: []Role{adminRole, userRole},
 	}
 	db.Create(&user)
 
 	// Query user with roles (preload many-to-many)
 	var fetchedUser User
-	db.Preload("Roles").First(&fetchedUser, "email = ?", "dana@example.com")
+	db.Preload("Roles").First(&fetchedUser, "email = ?", "pranesh@example.com")
 	fmt.Println("User:", fetchedUser.Name)
 	for _, r := range fetchedUser.Roles {
 		fmt.Println("Role:", r.Name)
@@ -100,7 +101,7 @@ func main() {
 	}
 
 	// Hook example: before create callback (defined below)
-	newUser := User{Name: "Eve", Email: "eve@example.com"}
+	newUser := User{Name: "Saravanan", Email: "saravanan@example.com"}
 	db.Create(&newUser)
 }
 
