@@ -1,14 +1,11 @@
-module github.com/praneshragu/grpc
+module github.com/praneshragu/grpc/helloworldpb
 
 go 1.23.8
 
 require (
-	github.com/praneshragu/grpc/helloworldpb v0.0.0
 	google.golang.org/grpc v1.72.1
 	google.golang.org/protobuf v1.36.6
 )
-
-replace github.com/praneshragu/grpc/helloworldpb => ./helloworldpb
 
 require (
 	golang.org/x/net v0.35.0 // indirect
