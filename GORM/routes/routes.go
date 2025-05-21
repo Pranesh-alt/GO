@@ -25,12 +25,23 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
 	r.DELETE("/users/:id", func(c *gin.Context) {
 		controllers.DeleteUser(c, db)
 	})
+	r.POST("/login", func(c *gin.Context) {
+		controllers.Login(c, db)
+	})
 
-	// Protected route
+	// Protected routes group
 	protected := r.Group("/protected")
 	protected.Use(middleware.AuthMiddleware())
+
 	protected.GET("/me", func(c *gin.Context) {
-		email := c.MustGet("user_email").(string)
+		email, _ := c.Get("user_email")
 		c.JSON(http.StatusOK, gin.H{"email": email})
+	})
+
+	// Role-based protected route example (admin only)
+	admin := r.Group("/admin")
+	admin.Use(middleware.AuthMiddleware("admin"))
+	admin.GET("/dashboard", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome Admin"})
 	})
 }

@@ -9,10 +9,10 @@ import (
 )
 
 // Secret key for signing JWTs – in real apps, move this to config/env
-var jwtSecret = []byte("supersecretkey")
+var JwtSecret = []byte("supersecretkey")
 
-// Middleware to protect routes
-func AuthMiddleware() gin.HandlerFunc {
+// AuthMiddleware protects routes and adds user context
+func AuthMiddleware(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
@@ -22,31 +22,32 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-
 		claims := &jwt.RegisteredClaims{}
+
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+			return JwtSecret, nil
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
 
-		c.Set("user_email", claims.Subject) // save user info to context
+		c.Set("user_email", claims.Subject)
 		c.Next()
 	}
 }
 
-// Function to generate a JWT token (for login/signup responses)
+// GenerateToken creates a JWT token for a given email (or subject)
 func GenerateToken(email string) (string, error) {
+	expiresAt := time.Now().Add(24 * time.Hour)
 	claims := jwt.RegisteredClaims{
 		Subject:   email,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		ExpiresAt: jwt.NewNumericDate(expiresAt),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(JwtSecret)
 }

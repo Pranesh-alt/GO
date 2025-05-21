@@ -82,6 +82,7 @@ func UpdateUser(c *gin.Context, db *gorm.DB) {
 	}
 	user.Name = input.Name
 	user.Email = input.Email
+	user.Password = input.Password
 	if err := db.Save(&user).Error; err != nil {
 		log.Printf("Failed to update user with ID %d: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
