@@ -1,12 +1,11 @@
 package controllers
 
 import (
-	"encoding/json"
-	"net/http"
-
 	"GORM/middleware"
 	"GORM/models"
+	"encoding/json"
 	"gorm.io/gorm"
+	"net/http"
 )
 
 func Login(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
@@ -14,7 +13,6 @@ func Login(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
@@ -32,7 +30,5 @@ func Login(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }

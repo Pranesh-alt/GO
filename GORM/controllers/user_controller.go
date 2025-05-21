@@ -1,17 +1,16 @@
 package controllers
 
 import (
+	"GORM/middleware"
 	"GORM/models"
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"gorm.io/gorm"
-	"log"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
-// Get all users
+// GET /users?email=optional
 func GetUsers(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	email := r.URL.Query().Get("email")
 
@@ -26,14 +25,14 @@ func GetUsers(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{"users": users})
+	json.NewEncoder(w).Encode(map[string]interface{}{"users": users})
 }
 
-// Create a user
+// POST /users
 func CreateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	var input models.User
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
@@ -42,10 +41,11 @@ func CreateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, input)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(input)
 }
 
-// Get a user by ID
+// GET /users/{id}
 func GetUserByID(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	idParam := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idParam)
@@ -60,10 +60,10 @@ func GetUserByID(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{"user": user})
+	json.NewEncoder(w).Encode(map[string]interface{}{"user": user})
 }
 
-// Update a user
+// PUT /users/{id}
 func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	idParam := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idParam)
@@ -80,7 +80,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 
 	var input models.User
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
@@ -93,10 +93,10 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{"user": user})
+	json.NewEncoder(w).Encode(map[string]interface{}{"user": user})
 }
 
-// Delete a user
+// DELETE /users/{id}
 func DeleteUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	idParam := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idParam)
@@ -116,13 +116,15 @@ func DeleteUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"message": "User deleted successfully"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "User deleted successfully"})
 }
 
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("Failed to write JSON response: %v", err)
+// GET /protected/me
+func MeHandler(w http.ResponseWriter, r *http.Request) {
+	email, ok := middleware.GetUserEmailFromContext(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
+	json.NewEncoder(w).Encode(map[string]string{"email": email})
 }

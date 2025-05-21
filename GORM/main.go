@@ -5,9 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	_ "GORM/docs" // Swagger docs
-
-	httpSwagger "github.com/swaggo/http-swagger"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
@@ -21,7 +18,7 @@ func initDB() {
 	var err error
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Failed to connect:", err)
+		log.Fatal("Failed to connect to database:", err)
 	}
 }
 
@@ -29,16 +26,8 @@ func main() {
 	initDB()
 
 	r := mux.NewRouter()
-
-	// Swagger docs route
-	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-
-	// Register application routes
 	routes.RegisterUserRoutes(r, DB)
 
-	// Start server
-	log.Println("Server running at http://localhost:8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatal(err)
-	}
+	log.Println("Server running on http://localhost:8080")
+	http.ListenAndServe(":8080", r)
 }
