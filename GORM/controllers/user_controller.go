@@ -112,5 +112,3 @@ func DeleteUser(c *gin.Context, db *gorm.DB) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
-
-//
