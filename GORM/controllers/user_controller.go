@@ -2,114 +2,127 @@ package controllers
 
 import (
 	"GORM/models"
-	"github.com/gin-gonic/gin"
+	"encoding/json"
 	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 // Get all users
-func GetUsers(c *gin.Context, db *gorm.DB) {
-	email := c.Query("email")
+func GetUsers(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+	email := r.URL.Query().Get("email")
 
 	var users []models.User
-
 	query := db.Model(&models.User{})
-
 	if email != "" {
 		query = query.Where("email = ?", email)
 	}
 
 	if err := query.Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"users": users})
+	writeJSON(w, http.StatusOK, map[string]interface{}{"users": users})
 }
 
 // Create a user
-func CreateUser(c *gin.Context, db *gorm.DB) {
+func CreateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	var input models.User
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	db.Create(&input)
-	c.JSON(http.StatusCreated, input)
+
+	if err := db.Create(&input).Error; err != nil {
+		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, input)
 }
 
 // Get a user by ID
-func GetUserByID(c *gin.Context, db *gorm.DB) {
-	idParam := c.Param("id")
+func GetUserByID(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+	idParam := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		log.Printf("Invalid user ID param: %v", idParam)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
 
 	var user models.User
 	if err := db.First(&user, id).Error; err != nil {
-		log.Printf("Failed to find user with ID %d: %v", id, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"user": user})
+	writeJSON(w, http.StatusOK, map[string]interface{}{"user": user})
 }
 
-// Update  a user
-func UpdateUser(c *gin.Context, db *gorm.DB) {
-	idParam := c.Param("id")
+// Update a user
+func UpdateUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+	idParam := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		log.Printf("Invalid user ID param: %v", idParam)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
+
 	var user models.User
 	if err := db.First(&user, id).Error; err != nil {
-		log.Printf("Failed to find user with ID %d: %v", id, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
+
 	var input models.User
-	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	user.Name = input.Name
 	user.Email = input.Email
 	user.Password = input.Password
+
 	if err := db.Save(&user).Error; err != nil {
-		log.Printf("Failed to update user with ID %d: %v", id, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"user": user})
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"user": user})
 }
 
 // Delete a user
-func DeleteUser(c *gin.Context, db *gorm.DB) {
-	idParam := c.Param("id")
+func DeleteUser(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+	idParam := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		log.Printf("Invalid user ID param: %v", idParam)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
+
 	var user models.User
 	if err := db.First(&user, id).Error; err != nil {
-		log.Printf("Failed to find user with ID %d: %v", id, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
+
 	if err := db.Delete(&user).Error; err != nil {
-		log.Printf("Failed to delete user with ID %d: %v", id, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "User deleted successfully"})
+}
+
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("Failed to write JSON response: %v", err)
+	}
 }

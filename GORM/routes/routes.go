@@ -3,45 +3,55 @@ package routes
 import (
 	"GORM/controllers"
 	"GORM/middleware"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 	"net/http"
 )
 
-func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
+func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
 	// Public routes
-	r.GET("/users", func(c *gin.Context) {
-		controllers.GetUsers(c, db)
-	})
-	r.POST("/users", func(c *gin.Context) {
-		controllers.CreateUser(c, db)
-	})
-	r.GET("/users/:id", func(c *gin.Context) {
-		controllers.GetUserByID(c, db)
-	})
-	r.PUT("/users/:id", func(c *gin.Context) {
-		controllers.UpdateUser(c, db)
-	})
-	r.DELETE("/users/:id", func(c *gin.Context) {
-		controllers.DeleteUser(c, db)
-	})
-	r.POST("/login", func(c *gin.Context) {
-		controllers.Login(c, db)
-	})
+	r.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		controllers.GetUsers(w, r, db)
+	}).Methods("GET")
 
-	// Protected routes group
-	protected := r.Group("/protected")
+	r.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		controllers.CreateUser(w, r, db)
+	}).Methods("POST")
+
+	r.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		controllers.GetUserByID(w, r, db)
+	}).Methods("GET")
+
+	r.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		controllers.UpdateUser(w, r, db)
+	}).Methods("PUT")
+
+	r.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		controllers.DeleteUser(w, r, db)
+	}).Methods("DELETE")
+
+	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		controllers.Login(w, r, db)
+	}).Methods("POST")
+
+	// Protected routes
+	protected := r.PathPrefix("/protected").Subrouter()
 	protected.Use(middleware.AuthMiddleware())
 
-	protected.GET("/me", func(c *gin.Context) {
-		email, _ := c.Get("user_email")
-		c.JSON(http.StatusOK, gin.H{"email": email})
-	})
+	protected.HandleFunc("/me", func(w http.ResponseWriter, r *http.Request) {
+		email := r.Context().Value("user_email").(string)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"email":"` + email + `"}`))
+	}).Methods("GET")
 
-	// Role-based protected route example (admin only)
-	admin := r.Group("/admin")
+	// Admin routes
+	admin := r.PathPrefix("/admin").Subrouter()
 	admin.Use(middleware.AuthMiddleware("admin"))
-	admin.GET("/dashboard", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Welcome Admin"})
-	})
+
+	admin.HandleFunc("/dashboard", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message":"Welcome Admin"}`))
+	}).Methods("GET")
 }

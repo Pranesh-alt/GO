@@ -1,16 +1,17 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"GORM/routes"
+	"log"
+	"net/http"
+
+	_ "GORM/docs" // Swagger docs
+
+	httpSwagger "github.com/swaggo/http-swagger"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"log"
 
-	_ "GORM/docs" // replace with actual module name
-	swaggerFiles "github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
-
-	"GORM/routes"
+	"github.com/gorilla/mux"
 )
 
 var DB *gorm.DB
@@ -27,13 +28,17 @@ func initDB() {
 func main() {
 	initDB()
 
-	r := gin.Default()
+	r := mux.NewRouter()
 
-	// Swagger docs
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger docs route
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-	// Register routes
+	// Register application routes
 	routes.RegisterUserRoutes(r, DB)
 
-	r.Run(":8080")
+	// Start server
+	log.Println("Server running at http://localhost:8080")
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		log.Fatal(err)
+	}
 }
