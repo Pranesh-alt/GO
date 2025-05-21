@@ -4,7 +4,9 @@ import (
 	"GORM/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"log"
 	"net/http"
+	"strconv"
 )
 
 // Get all users
@@ -25,14 +27,21 @@ func CreateUser(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusCreated, input)
 }
 
-// Get a user by ID
 func GetUserByID(c *gin.Context, db *gorm.DB) {
-	id := c.Params.ByName(("id"))
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		log.Printf("Invalid user ID param: %v", idParam)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
 	var user models.User
-	if err := db.Where(("id = ?"), id).First(&user).Error; err != nil {
+	if err := db.First(&user, id).Error; err != nil {
+		log.Printf("Failed to find user with ID %d: %v", id, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	c.JSON(http.StatusOK, user)
 
+	c.JSON(http.StatusOK, gin.H{"user": user})
 }

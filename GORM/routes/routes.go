@@ -16,6 +16,9 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
 	r.POST("/users", func(c *gin.Context) {
 		controllers.CreateUser(c, db)
 	})
+	r.GET("/users/:id", func(c *gin.Context) {
+		controllers.GetUserByID(c, db)
+	})
 
 	// Protected route
 	protected := r.Group("/protected")
