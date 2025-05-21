@@ -25,6 +25,9 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
 	r.DELETE("/users/:id", func(c *gin.Context) {
 		controllers.DeleteUser(c, db)
 	})
+	r.GET("/users/:email", func(c *gin.Context) {
+		controllers.GetUserByEmail(c, db)
+	})
 
 	// Protected route
 	protected := r.Group("/protected")
