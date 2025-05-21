@@ -39,4 +39,20 @@ func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
 	protected.Use(middleware.AuthMiddleware())
 
 	protected.HandleFunc("/me", controllers.MeHandler).Methods("GET")
+	protected.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		controllers.GetUsers(w, r, db)
+	}).Methods("GET")
+	protected.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		controllers.GetUserByID(w, r, db)
+	})
+	protected.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		controllers.UpdateUser(w, r, db)
+	})
+	protected.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		controllers.DeleteUser(w, r, db)
+	})
+	protected.HandleFunc("users", func(w http.ResponseWriter, r *http.Request) {
+		controllers.CreateUser(w, r, db)
+	})
+
 }
