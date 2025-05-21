@@ -11,9 +11,22 @@ import (
 
 // Get all users
 func GetUsers(c *gin.Context, db *gorm.DB) {
+	email := c.Query("email")
+
 	var users []models.User
-	db.Find(&users)
-	c.JSON(http.StatusOK, users)
+
+	query := db.Model(&models.User{})
+
+	if email != "" {
+		query = query.Where("email = ?", email)
+	}
+
+	if err := query.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
 // Create a user
@@ -100,15 +113,4 @@ func DeleteUser(c *gin.Context, db *gorm.DB) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
-// Get user by email
-func GetUserByEmail(c *gin.Context, db *gorm.DB) {
-	email := c.Param("email")
-	var user models.User
-	if err := db.Where("email = ?", email).First(&user).Error; err != nil {
-		log.Printf("Failed to find user with email %s: %v", email, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"user": user})
-
-}
+//
