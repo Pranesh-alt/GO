@@ -23,6 +23,10 @@ func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
 		controllers.GetUsers(w, r, db)
 	}).Methods("GET")
 
+	r.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		controllers.GetUserByID(w, r, db)
+	}).Methods("GET")
+
 	// Protected Routes (Require AuthMiddleware)
 	protected := r.PathPrefix("/protected").Subrouter()
 	protected.Use(middleware.AuthMiddleware())
