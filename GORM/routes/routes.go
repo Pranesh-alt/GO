@@ -3,9 +3,10 @@ package routes
 import (
 	"GORM/controllers"
 	"GORM/middleware"
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
@@ -18,7 +19,6 @@ func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
 		controllers.CreateUser(w, r, db)
 	}).Methods("POST")
 
-	// Optional: public user lookup by ID or email (read-only)
 	r.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
 		controllers.GetUsers(w, r, db)
 	}).Methods("GET")
@@ -33,10 +33,6 @@ func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
 		controllers.GetProtectedUsers(w, r, db)
 	}).Methods("GET")
 
-	protected.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		controllers.CreateUser(w, r, db)
-	}).Methods("POST")
-
 	protected.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		controllers.GetProtectedUsersByID(w, r, db)
 	}).Methods("GET")
@@ -48,4 +44,10 @@ func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
 	protected.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		controllers.DeleteUser(w, r, db)
 	}).Methods("DELETE")
+
+	protected.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message": "Logged out successfully"}`))
+	}).Methods("POST")
 }

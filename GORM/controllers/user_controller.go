@@ -231,7 +231,7 @@ func GetProtectedUsersByID(w http.ResponseWriter, r *http.Request, db *gorm.DB) 
 	idParam := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		http.Error(w, `{"error: "Invalid user ID"}`, http.StatusBadRequest)
+		http.Error(w, `{"error": "Invalid user ID"}`, http.StatusBadRequest)
 		return
 	}
 	var user models.User
@@ -240,4 +240,10 @@ func GetProtectedUsersByID(w http.ResponseWriter, r *http.Request, db *gorm.DB) 
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]interface{}{"user": user})
+}
+
+// GET /logout
+func Logout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out successfully"})
 }
