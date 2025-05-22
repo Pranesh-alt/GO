@@ -223,3 +223,21 @@ func GetProtectedUsers(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 
 	json.NewEncoder(w).Encode(map[string]interface{}{"users": users})
 }
+
+// GET /protected/users/{id}
+func GetProtectedUsersByID(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
+	w.Header().Set("Content-Type", "application/json")
+
+	idParam := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		http.Error(w, `{"error: "Invalid user ID"}`, http.StatusBadRequest)
+		return
+	}
+	var user models.User
+	if err := db.First(&user, id).Error; err != nil {
+		http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"user": user})
+}

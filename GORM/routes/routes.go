@@ -38,7 +38,7 @@ func RegisterUserRoutes(r *mux.Router, db *gorm.DB) {
 	}).Methods("POST")
 
 	protected.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
-		controllers.GetUserByID(w, r, db)
+		controllers.GetProtectedUsersByID(w, r, db)
 	}).Methods("GET")
 
 	protected.HandleFunc("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
