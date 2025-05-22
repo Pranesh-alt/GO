@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Modern Contact Form</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #333;
+    }
+
+    .form-wrapper {
+      background: #fff;
+      padding: 40px 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      max-width: 400px;
+      width: 100%;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+      font-weight: 600;
+    }
+
+    .form-group {
+      position: relative;
+      margin-bottom: 28px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 14px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: transparent;
+      font-size: 16px;
+      transition: 0.3s;
+    }
+
+    .form-group label {
+      position: absolute;
+      top: 14px;
+      left: 12px;
+      background: white;
+      padding: 0 4px;
+      color: #aaa;
+      pointer-events: none;
+      transition: 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #ff6f61;
+    }
+
+    .form-group input:focus + label,
+    .form-group input:not(:placeholder-shown) + label {
+      top: -10px;
+      font-size: 13px;
+      color: #ff6f61;
+    }
+
+    .form-group input::placeholder {
+      color: transparent;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background-color: #ff6f61;
+      color: #fff;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .submit-btn:hover {
+      background-color: #e85c4f;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 500px) {
+      .form-wrapper {
+        padding: 30px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-wrapper">
+    <h2>Contact Us</h2>
+    <form method="POST" action="/submit">
+      <div class="form-group">
+        <input type="text" name="name" id="name" required placeholder="Your Name">
+        <label for="name">Name</label>
+      </div>
+
+      <div class="form-group">
+        <input type="email" name="email" id="email" required placeholder="Your Email">
+        <label for="email">Email</label>
+      </div>
+
+      <input type="submit" value="Send Message" class="submit-btn">
+    </form>
+  </div>
+
+</body>
+</html>
